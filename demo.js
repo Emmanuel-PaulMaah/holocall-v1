@@ -1,44 +1,61 @@
-// HoloCall Prototype
-// Import Three.js as ES module
 import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.150.0/build/three.module.js";
 import { ARButton } from "https://cdn.jsdelivr.net/npm/three@0.150.0/examples/jsm/webxr/ARButton.js";
 
+// Arrays for peer ID generation
+const duneNames = ["atreides", "harkonnen", "arrakis", "fremen", "sardaukar", "bene-gesserit", "guild", "duncan", "paul", "chani"];
+const nigeriaPlaces = ["lagos", "abuja", "kano", "ibadan", "kaduna", "jos", "benin", "enugu", "maiduguri", "portharcourt"];
+
+// Generate random peer ID
+function generatePeerId() {
+  const dune = duneNames[Math.floor(Math.random() * duneNames.length)];
+  const place = nigeriaPlaces[Math.floor(Math.random() * nigeriaPlaces.length)];
+  return `${dune}-${place}`;
+}
+
+const myId = generatePeerId();
+document.getElementById("myId").innerText = myId;
+
+// PeerJS setup
+const peer = new Peer(myId);
 const localVideo = document.getElementById("localVideo");
 const remoteVideo = document.getElementById("remoteVideo");
-const startBtn = document.getElementById("startBtn");
 
-let pc;              // WebRTC peer connection
-let remotePlane;     // 3D mesh for remote person
-let remoteTexture;   // video texture
+let localStream;
+let remotePlane;
 
-// 🟢 Setup Three.js + AR
+// Setup media
+async function initMedia() {
+  localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+  localVideo.srcObject = localStream;
+}
+initMedia();
+
+// Handle incoming calls
+peer.on("call", call => {
+  call.answer(localStream);
+  call.on("stream", stream => {
+    setupRemoteStream(stream);
+  });
+});
+
+// Three.js AR setup
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(
-  70,
-  window.innerWidth / window.innerHeight,
-  0.01,
-  20
-);
+const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 20);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.xr.enabled = true;
 document.body.appendChild(renderer.domElement);
 
-// Add AR button
 document.body.appendChild(ARButton.createButton(renderer));
 
-// Function to place remote video in AR
-function addRemoteStream(stream) {
+function setupRemoteStream(stream) {
   remoteVideo.srcObject = stream;
-  remoteTexture = new THREE.VideoTexture(remoteVideo);
-  const geometry = new THREE.PlaneGeometry(1, 1.5); // ~human aspect
-  const material = new THREE.MeshBasicMaterial({
-    map: remoteTexture,
-    transparent: true
-  });
+  const texture = new THREE.VideoTexture(remoteVideo);
+  const geometry = new THREE.PlaneGeometry(1, 1.5); // aspect ~ portrait human
+  const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true });
   remotePlane = new THREE.Mesh(geometry, material);
-  remotePlane.position.set(0, 0, -2); // 2m in front
+  remotePlane.position.set(0, 0, -2);
   scene.add(remotePlane);
 }
 
@@ -50,46 +67,15 @@ function animate() {
 }
 animate();
 
-// 🟠 WebRTC setup
-async function startCall() {
-  pc = new RTCPeerConnection();
-
-  // Local video
-  const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-  localVideo.srcObject = stream;
-  stream.getTracks().forEach(track => pc.addTrack(track, stream));
-
-  // Remote video
-  pc.ontrack = (event) => {
-    addRemoteStream(event.streams[0]);
-  };
-
-  // Offer/Answer
-  const offer = await pc.createOffer();
-  await pc.setLocalDescription(offer);
-  console.log("👉 Copy this offer to remote:", JSON.stringify(offer));
-
-  const answerStr = prompt("Paste answer SDP here:");
-  if (answerStr) {
-    const answer = JSON.parse(answerStr);
-    await pc.setRemoteDescription(answer);
+// Call button
+document.getElementById("callBtn").onclick = () => {
+  const remoteId = document.getElementById("remoteId").value.trim();
+  if (!remoteId) {
+    alert("Enter a remote peer ID!");
+    return;
   }
-}
-
-// 🟣 Background removal prep (not applied to stream yet)
-async function loadBodyPix() {
-  const bodyPixNet = await bodyPix.load();
-  setInterval(async () => {
-    if (localVideo.readyState === 4) {
-      const segmentation = await bodyPixNet.segmentPerson(localVideo);
-      const mask = bodyPix.toMask(segmentation);
-      // TODO: Apply mask → send only person pixels in stream
-    }
-  }, 200);
-}
-
-// 🎯 Button trigger
-startBtn.onclick = async () => {
-  await loadBodyPix();
-  startCall();
+  const call = peer.call(remoteId, localStream);
+  call.on("stream", stream => {
+    setupRemoteStream(stream);
+  });
 };
