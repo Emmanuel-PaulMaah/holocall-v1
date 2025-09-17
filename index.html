@@ -3,37 +3,56 @@
 <head>
   <meta charset="UTF-8">
   <title>HoloCall v1</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
     body { margin: 0; font-family: sans-serif; background: #111; color: #eee; }
     #ui {
       position: absolute;
       top: 10px;
-      left: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 90%;
+      max-width: 400px;
       background: rgba(0,0,0,0.6);
-      padding: 10px;
-      border-radius: 5px;
+      padding: 15px;
+      border-radius: 8px;
+      box-sizing: border-box;
     }
     input, button {
-      margin-top: 5px;
+      margin-top: 10px;
       width: 100%;
+      padding: 10px;
+      font-size: 1rem;
+      border: none;
+      border-radius: 5px;
     }
+    button { background: #1e88e5; color: white; cursor: pointer; }
+    button:active { background: #1565c0; }
     video { display: none; }
+    .id-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .id-row span { flex-grow: 1; word-break: break-all; }
   </style>
 </head>
 <body>
   <div id="ui">
-    <div><b>Your ID:</b> <span id="myId">generating…</span></div>
+    <div class="id-row">
+      <div><b>Your ID:</b> <span id="myId">generating…</span></div>
+      <button id="copyBtn">Copy ID</button>
+    </div>
     <input type="text" id="remoteId" placeholder="Enter peer ID to call">
     <button id="callBtn">Call</button>
   </div>
 
-  <!-- Local + remote video elements -->
   <video id="localVideo" autoplay playsinline muted></video>
   <video id="remoteVideo" autoplay playsinline></video>
 
-  <!-- PeerJS -->
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-  <!-- Three.js (ESM loader) -->
   <script type="module" src="demo.js"></script>
 </body>
 </html>
