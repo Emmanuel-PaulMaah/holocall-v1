@@ -2,31 +2,38 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>HoloCall</title>
+  <title>HoloCall v1</title>
   <style>
-    body { margin: 0; overflow: hidden; }
-    video { display: none; }
-    #startBtn {
+    body { margin: 0; font-family: sans-serif; background: #111; color: #eee; }
+    #ui {
       position: absolute;
       top: 10px;
       left: 10px;
+      background: rgba(0,0,0,0.6);
       padding: 10px;
-      background: white;
-      border: 1px solid #ccc;
-      z-index: 10;
+      border-radius: 5px;
     }
+    input, button {
+      margin-top: 5px;
+      width: 100%;
+    }
+    video { display: none; }
   </style>
 </head>
 <body>
-  <button id="startBtn">Start AR Call</button>
+  <div id="ui">
+    <div><b>Your ID:</b> <span id="myId">generating…</span></div>
+    <input type="text" id="remoteId" placeholder="Enter peer ID to call">
+    <button id="callBtn">Call</button>
+  </div>
+
+  <!-- Local + remote video elements -->
   <video id="localVideo" autoplay playsinline muted></video>
   <video id="remoteVideo" autoplay playsinline></video>
 
-  <!-- TensorFlow.js + BodyPix -->
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/body-pix"></script>
-
-  <!-- ✅ IMPORTANT: load demo.js as a module -->
+  <!-- PeerJS -->
+  <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+  <!-- Three.js (ESM loader) -->
   <script type="module" src="demo.js"></script>
 </body>
 </html>
