@@ -1,7 +1,5 @@
 import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.150.0/build/three.module.js";
 import { ARButton } from "https://cdn.jsdelivr.net/npm/three@0.150.0/examples/jsm/webxr/ARButton.js";
-import * as bodyPix from "https://cdn.jsdelivr.net/npm/@tensorflow-models/body-pix@2.2.0/dist/body-pix.esm.js";
-import * as tf from "https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.2.0/dist/tf.esm.js";
 
 // -----------------------
 // PeerJS Setup
@@ -16,117 +14,50 @@ function generatePeerId() {
 }
 
 const myId = generatePeerId();
+document.getElementById("myId").innerText = myId;
 
-// -----------------------
-// DOM Elements
-// -----------------------
-const localVideo = document.getElementById("localVideo");
-const remoteVideo = document.getElementById("remoteVideo");
-
-// -----------------------
-// Local media
-// -----------------------
-let localStream;
-async function initMedia() {
-  try {
-    localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-    localVideo.srcObject = localStream;
-    await localVideo.play();
-  } catch (err) {
-    alert("Camera access denied or not available: " + err.message);
-    console.error(err);
-  }
-}
-initMedia(); // start immediately, independent of PeerJS
-
-// -----------------------
-// BodyPix
-// -----------------------
-let bodyPixNet;
-const processedCanvas = document.createElement('canvas');
-const processedCtx = processedCanvas.getContext('2d');
-
-async function loadBodyPix() {
-  bodyPixNet = await bodyPix.load({
-    architecture: 'MobileNetV1',
-    outputStride: 16,
-    multiplier: 0.75,
-    quantBytes: 2
-  });
-  console.log("BodyPix loaded");
-}
-loadBodyPix();
-
-async function processFrame() {
-  if (!bodyPixNet || !localVideo.videoWidth) return requestAnimationFrame(processFrame);
-
-  processedCanvas.width = localVideo.videoWidth;
-  processedCanvas.height = localVideo.videoHeight;
-
-  const segmentation = await bodyPixNet.segmentPerson(localVideo, {
-    internalResolution: 'low',
-    segmentationThreshold: 0.7
-  });
-
-  const mask = bodyPix.toMask(segmentation, { r:0,g:0,b:0,a:0 }, { r:0,g:0,b:0,a:255 });
-  processedCtx.putImageData(mask, 0, 0);
-  processedCtx.drawImage(localVideo, 0, 0);
-
-  if (localPlane) localPlane.material.map.needsUpdate = true;
-
-  requestAnimationFrame(processFrame);
-}
-
-// -----------------------
-// PeerJS connection
-// -----------------------
 const peer = new Peer(myId, {
-  host: '0.peerjs.com', // public server (replace with your own for production)
+  host: '0.peerjs.com',
   port: 443,
   path: '/',
   secure: true
 });
 
-peer.on('open', id => {
-  console.log("Peer connected with ID:", id);
-  document.getElementById("myId").innerText = id;
-  processFrame(); // start BodyPix loop after peer open
-});
+// DOM elements
+const localVideo = document.getElementById("localVideo");
+const remoteVideo = document.getElementById("remoteVideo");
 
-peer.on('disconnected', () => {
-  console.warn("Peer disconnected, retrying...");
-  peer.reconnect();
-});
+let localStream, remotePlane;
 
-peer.on('error', err => console.error("Peer error:", err));
+// -----------------------
+// Local video setup
+// -----------------------
+async function initMedia() {
+  localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+  localVideo.srcObject = localStream;
+  await localVideo.play();
+}
+initMedia();
 
-// Handle incoming calls
+// -----------------------
+// Incoming calls
+// -----------------------
 peer.on("call", call => {
   call.answer(localStream);
   call.on("stream", stream => setupRemoteStream(stream));
 });
 
 // -----------------------
-// AR Scene
+// Three.js AR Setup
 // -----------------------
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 20);
+
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.xr.enabled = true;
 document.body.appendChild(renderer.domElement);
 document.body.appendChild(ARButton.createButton(renderer));
-
-let localPlane, remotePlane;
-
-function setupLocalPlane() {
-  const texture = new THREE.VideoTexture(processedCanvas);
-  const geometry = new THREE.PlaneGeometry(1, 1.5);
-  const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true });
-  localPlane = new THREE.Mesh(geometry, material);
-  localPlane.position.set(0, 0, -1.5);
-  scene.add(localPlane);
-}
 
 function setupRemoteStream(stream) {
   remoteVideo.srcObject = stream;
@@ -138,7 +69,9 @@ function setupRemoteStream(stream) {
   scene.add(remotePlane);
 }
 
+// -----------------------
 // Animate AR scene
+// -----------------------
 function animate() {
   renderer.setAnimationLoop(() => renderer.render(scene, camera));
 }
@@ -166,8 +99,3 @@ window.addEventListener("resize", () => {
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
-
-// -----------------------
-// Start AR local plane
-// -----------------------
-setupLocalPlane();
