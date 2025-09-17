@@ -16,23 +16,36 @@ function generatePeerId() {
 }
 
 const myId = generatePeerId();
-const peer = new Peer(myId, {
-  secure: true,               // Required for mobile HTTPS
-  host: '0.peerjs.com',       // Use public server
-  port: 443,
-  path: '/'
-});
 
+// -----------------------
 // DOM Elements
+// -----------------------
 const localVideo = document.getElementById("localVideo");
 const remoteVideo = document.getElementById("remoteVideo");
 
-let localStream, remotePlane, localPlane;
-let bodyPixNet;
+// -----------------------
+// Local media
+// -----------------------
+let localStream;
+async function initMedia() {
+  try {
+    localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+    localVideo.srcObject = localStream;
+    await localVideo.play();
+  } catch (err) {
+    alert("Camera access denied or not available: " + err.message);
+    console.error(err);
+  }
+}
+initMedia(); // start immediately, independent of PeerJS
 
 // -----------------------
-// Load BodyPix
+// BodyPix
 // -----------------------
+let bodyPixNet;
+const processedCanvas = document.createElement('canvas');
+const processedCtx = processedCanvas.getContext('2d');
+
 async function loadBodyPix() {
   bodyPixNet = await bodyPix.load({
     architecture: 'MobileNetV1',
@@ -44,77 +57,6 @@ async function loadBodyPix() {
 }
 loadBodyPix();
 
-// Canvas for processed video
-const processedCanvas = document.createElement('canvas');
-const processedCtx = processedCanvas.getContext('2d');
-
-// -----------------------
-// Initialize PeerJS connection
-// -----------------------
-peer.on('open', async id => {
-  console.log("Peer connected with ID:", id);
-  document.getElementById("myId").innerText = id;
-
-  // Initialize local media after peer is ready
-  await initMedia();
-  setupLocalPlane();
-  processFrame();
-});
-
-// Handle incoming calls
-peer.on("call", call => {
-  call.answer(localStream);
-  call.on("stream", stream => setupRemoteStream(stream));
-});
-
-// -----------------------
-// Local video setup
-// -----------------------
-async function initMedia() {
-  localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-  localVideo.srcObject = localStream;
-  await localVideo.play();
-}
-
-// -----------------------
-// AR Scene Setup
-// -----------------------
-const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 20);
-const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.xr.enabled = true;
-document.body.appendChild(renderer.domElement);
-document.body.appendChild(ARButton.createButton(renderer));
-
-// -----------------------
-// Setup AR plane for remote video
-// -----------------------
-function setupRemoteStream(stream) {
-  remoteVideo.srcObject = stream;
-  const texture = new THREE.VideoTexture(remoteVideo);
-  const geometry = new THREE.PlaneGeometry(1, 1.5);
-  const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true });
-  remotePlane = new THREE.Mesh(geometry, material);
-  remotePlane.position.set(0, 0, -2);
-  scene.add(remotePlane);
-}
-
-// -----------------------
-// Setup AR plane for local video (background removed)
-// -----------------------
-function setupLocalPlane() {
-  const texture = new THREE.VideoTexture(processedCanvas);
-  const geometry = new THREE.PlaneGeometry(1, 1.5);
-  const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true });
-  localPlane = new THREE.Mesh(geometry, material);
-  localPlane.position.set(0, 0, -1.5);
-  scene.add(localPlane);
-}
-
-// -----------------------
-// BodyPix frame processing
-// -----------------------
 async function processFrame() {
   if (!bodyPixNet || !localVideo.videoWidth) return requestAnimationFrame(processFrame);
 
@@ -136,8 +78,67 @@ async function processFrame() {
 }
 
 // -----------------------
-// Animate AR scene
+// PeerJS connection
 // -----------------------
+const peer = new Peer(myId, {
+  host: '0.peerjs.com', // public server (replace with your own for production)
+  port: 443,
+  path: '/',
+  secure: true
+});
+
+peer.on('open', id => {
+  console.log("Peer connected with ID:", id);
+  document.getElementById("myId").innerText = id;
+  processFrame(); // start BodyPix loop after peer open
+});
+
+peer.on('disconnected', () => {
+  console.warn("Peer disconnected, retrying...");
+  peer.reconnect();
+});
+
+peer.on('error', err => console.error("Peer error:", err));
+
+// Handle incoming calls
+peer.on("call", call => {
+  call.answer(localStream);
+  call.on("stream", stream => setupRemoteStream(stream));
+});
+
+// -----------------------
+// AR Scene
+// -----------------------
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 20);
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.xr.enabled = true;
+document.body.appendChild(renderer.domElement);
+document.body.appendChild(ARButton.createButton(renderer));
+
+let localPlane, remotePlane;
+
+function setupLocalPlane() {
+  const texture = new THREE.VideoTexture(processedCanvas);
+  const geometry = new THREE.PlaneGeometry(1, 1.5);
+  const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true });
+  localPlane = new THREE.Mesh(geometry, material);
+  localPlane.position.set(0, 0, -1.5);
+  scene.add(localPlane);
+}
+
+function setupRemoteStream(stream) {
+  remoteVideo.srcObject = stream;
+  const texture = new THREE.VideoTexture(remoteVideo);
+  const geometry = new THREE.PlaneGeometry(1, 1.5);
+  const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true });
+  remotePlane = new THREE.Mesh(geometry, material);
+  remotePlane.position.set(0, 0, -2);
+  scene.add(remotePlane);
+}
+
+// Animate AR scene
 function animate() {
   renderer.setAnimationLoop(() => renderer.render(scene, camera));
 }
@@ -165,3 +166,8 @@ window.addEventListener("resize", () => {
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
+
+// -----------------------
+// Start AR local plane
+// -----------------------
+setupLocalPlane();
