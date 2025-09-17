@@ -1,3 +1,7 @@
+// Import Three.js + ARButton as ES modules
+import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.150.0/build/three.module.js";
+import { ARButton } from "https://cdn.jsdelivr.net/npm/three@0.150.0/examples/jsm/webxr/ARButton.js";
+
 let localVideo = document.getElementById("localVideo");
 let remoteVideo = document.getElementById("remoteVideo");
 let startBtn = document.getElementById("startBtn");
@@ -13,18 +17,18 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.xr.enabled = true;
 document.body.appendChild(renderer.domElement);
 
-// AR button
-document.body.appendChild(THREE.ARButton.createButton(renderer));
+// ✅ AR button now works
+document.body.appendChild(ARButton.createButton(renderer));
 
 // Plane for remote person
 let remoteTexture, remotePlane;
 function addRemoteStream(stream) {
   remoteVideo.srcObject = stream;
   remoteTexture = new THREE.VideoTexture(remoteVideo);
-  const geometry = new THREE.PlaneGeometry(1, 1.5); // roughly human proportions
+  const geometry = new THREE.PlaneGeometry(1, 1.5); // human proportions
   const material = new THREE.MeshBasicMaterial({ map: remoteTexture, transparent: true });
   remotePlane = new THREE.Mesh(geometry, material);
-  remotePlane.position.set(0, 0, -2); // 2m in front
+  remotePlane.position.set(0, 0, -2);
   scene.add(remotePlane);
 }
 
@@ -55,7 +59,6 @@ async function startCall() {
   await pc.setLocalDescription(offer);
   console.log("Copy this offer to remote:", JSON.stringify(offer));
 
-  // For demo: ask user to paste answer
   const answerStr = prompt("Paste answer SDP here:");
   if (answerStr) {
     const answer = JSON.parse(answerStr);
@@ -63,14 +66,13 @@ async function startCall() {
   }
 }
 
-// Background removal (local preview only for now)
+// Background removal (local preview only)
 async function loadBodyPix() {
   bodyPixNet = await bodyPix.load();
   setInterval(async () => {
     const segmentation = await bodyPixNet.segmentPerson(localVideo);
     const mask = bodyPix.toMask(segmentation);
-    // TODO: Apply mask to local feed → send transparent video
-    // For MVP we keep it simple: raw video is sent
+    // TODO: apply mask to video stream
   }, 200);
 }
 
