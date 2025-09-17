@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>AR Video Call Prototype</title>
+  <title>HoloCall</title>
   <style>
     body { margin: 0; overflow: hidden; }
     video { display: none; }
@@ -22,15 +22,11 @@
   <video id="localVideo" autoplay playsinline muted></video>
   <video id="remoteVideo" autoplay playsinline></video>
 
-  <!-- Three.js -->
-  <script src="https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/three@0.149.0/examples/jsm/webxr/ARButton.js"></script>
-
-  <!-- TensorFlow.js + BodyPix (for segmentation) -->
+  <!-- TensorFlow.js + BodyPix -->
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/body-pix"></script>
 
   <!-- Our script -->
-  <script src="demo.js"></script>
+  <script type="module" src="demo.js"></script>
 </body>
 </html>
