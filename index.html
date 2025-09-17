@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>AR Video Call Prototype</title>
+  <style>
+    body { margin: 0; overflow: hidden; }
+    video { display: none; }
+    #startBtn {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      padding: 10px;
+      background: white;
+      border: 1px solid #ccc;
+      z-index: 10;
+    }
+  </style>
+</head>
+<body>
+  <button id="startBtn">Start AR Call</button>
+  <video id="localVideo" autoplay playsinline muted></video>
+  <video id="remoteVideo" autoplay playsinline></video>
+
+  <!-- Three.js -->
+  <script src="https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.149.0/examples/jsm/webxr/ARButton.js"></script>
+
+  <!-- TensorFlow.js + BodyPix (for segmentation) -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/body-pix"></script>
+
+  <!-- Our script -->
+  <script src="demo.js"></script>
+</body>
+</html>
